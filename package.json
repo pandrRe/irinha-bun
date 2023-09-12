@@ -1,0 +1,14 @@
+{
+  "name": "rinhac-bun",
+  "module": "interpreter.ts",
+  "type": "module",
+  "scripts": {
+    "test": "bun run test.ts"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
