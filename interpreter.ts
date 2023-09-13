@@ -235,8 +235,11 @@ function evaluate(node: Node, frame: ReturnType<typeof createFrame>): Value {
     case "Function":
       return node;
     case "Let":
-      if (node.value.kind === "Tuple" || node.value.kind === "Function") {
+      if (node.value.kind === "Tuple") {
         frame.assign(node.name.text, node.value);
+      }
+      else if (node.value.kind === "Function") {
+        frame.declareFunction(node.name.text, node.value);
       }
       else {
         const value = evaluate(node.value, frame);
