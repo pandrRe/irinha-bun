@@ -25,7 +25,20 @@ type IfNode = {
 type BinaryNode = {
   kind: "Binary";
   lhs: Node;
-  op: "Add" | "Sub" | "Lt" | "Eq" | "Or";
+  op:
+    | "Add"
+    | "Sub"
+    | "Mul"
+    | "Div"
+    | "Rem"
+    | "Lt"
+    | "Gt"
+    | "Lte"
+    | "Gte"
+    | "Eq"
+    | "Neq"
+    | "Or"
+    | "And";
   rhs: Node;
   location: Location;
 };
@@ -42,11 +55,42 @@ type IntNode = {
   location: Location;
 };
 
+type StringNode = {
+  kind: "Str";
+  value: string;
+  location: Location;
+};
+
+type BooleanNode = {
+  kind: "Bool";
+  value: boolean;
+  location: Location;
+};
+
+export type TupleNode = {
+  kind: "Tuple";
+  first: Node;
+  second: Node;
+  location: Location;
+};
+
+type FirstNode = {
+  kind: "First";
+  value: Node;
+  location: Location;
+};
+
+type SecondNode = {
+  kind: "Second";
+  value: Node;
+  location: Location;
+};
+
 type PrintNode = {
   kind: "Print";
   value: Node;
   location: Location;
-}
+};
 
 type CallNode = {
   kind: "Call";
@@ -70,6 +114,11 @@ export type Node =
   | BinaryNode
   | VarNode
   | IntNode
+  | StringNode
+  | BooleanNode
+  | TupleNode
+  | FirstNode
+  | SecondNode
   | PrintNode
   | CallNode
   | FunctionNode;
@@ -80,12 +129,6 @@ type Root = {
   location: Location;
 };
 
-function assertBothSameType(a: Value, b: Value) {
-  if (typeof a !== typeof b) {
-    throw Error("Sides do not match type.")
-  }
-}
-
 function evaluateBinaryOp(binaryNode: BinaryNode, frame: ReturnType<typeof createFrame>): Value {
   const left = evaluate(binaryNode.lhs, frame);
   const right = evaluate(binaryNode.rhs, frame);
@@ -93,9 +136,11 @@ function evaluateBinaryOp(binaryNode: BinaryNode, frame: ReturnType<typeof creat
   switch (binaryNode.op) {
     case "Add":
       assert(
-        typeof left === "number" && typeof right === "number",
-        Error("Both LHS value and RHS value should be numbers.")
+        (typeof left === "string" || typeof left === "number")
+        && (typeof right === "string" || typeof right === "number"),
+        "Invalid + operation."
       );
+      //@ts-ignore
       return left + right;
     case "Sub":
       assert(
@@ -103,21 +148,64 @@ function evaluateBinaryOp(binaryNode: BinaryNode, frame: ReturnType<typeof creat
         Error("Both LHS value and RHS value should be numbers.")
       );
       return left - right;
+    case "Mul":
+      assert(
+        typeof left === "number" && typeof right === "number",
+        Error("Both LHS value and RHS value should be numbers.")
+      );
+      return left * right;
+    case "Div":
+      assert(
+        typeof left === "number" && typeof right === "number",
+        Error("Both LHS value and RHS value should be numbers.")
+      );
+      return left / right;
+    case "Rem":
+      assert(
+        typeof left === "number" && typeof right === "number",
+        Error("Both LHS value and RHS value should be numbers.")
+      );
+      return left % right;
     case "Eq":
-      assertBothSameType(left, right);
       return left === right;
+    case "Neq":
+      return left !== right;
     case "Lt":
       assert(
         typeof left === "number" && typeof right === "number",
         Error("Both LHS value and RHS value should be numbers.")
       );
       return left < right;
+    case "Gt":
+      assert(
+        typeof left === "number" && typeof right === "number",
+        Error("Both LHS value and RHS value should be numbers.")
+      );
+      return left > right;
+    case "Lte":
+      assert(
+        typeof left === "number" && typeof right === "number",
+        Error("Both LHS value and RHS value should be numbers.")
+      );
+      return left <= right;
+    case "Gte":
+      assert(
+        typeof left === "number" && typeof right === "number",
+        Error("Both LHS value and RHS value should be numbers.")
+      );
+      return left >= right;
     case "Or":
       assert(
         typeof left === "boolean" && typeof right === "boolean",
         Error("Both LHS value and RHS value should be booleans.")
       );
       return left || right;
+    case "And":
+      assert(
+        typeof left === "boolean" && typeof right === "boolean",
+        Error("Both LHS value and RHS value should be booleans.")
+      );
+      return left && right;
   };
 }
 
@@ -140,10 +228,20 @@ function callFunction(node: CallNode, frame: ReturnType<typeof createFrame>): Va
 function evaluate(node: Node, frame: ReturnType<typeof createFrame>): Value {
   switch (node.kind) {
     case "Int":
+    case "Str":
+    case "Bool":
       return node.value;
+    case "Tuple":
+    case "Function":
+      return node;
     case "Let":
-      const value = evaluate(node.value, frame);
-      frame.assign(node.name.text, value);
+      if (node.value.kind === "Tuple" || node.value.kind === "Function") {
+        frame.assign(node.name.text, node.value);
+      }
+      else {
+        const value = evaluate(node.value, frame);
+        frame.assign(node.name.text, value);
+      }
       return evaluate(node.next, frame);
     case "Binary":
       return evaluateBinaryOp(node, frame);
@@ -160,8 +258,12 @@ function evaluate(node: Node, frame: ReturnType<typeof createFrame>): Value {
       return frame.read(node.text);
     case "Call":
       return callFunction(node, frame);
-    case "Function":
-      return node;
+    case "First":
+      assert(node.value.kind === "Tuple", "Expected tuple.");
+      return evaluate(node.value.first, frame);
+    case "Second":
+      assert(node.value.kind === "Tuple", "Expected tuple.");
+      return evaluate(node.value.second, frame);
     case "Print":
       console.log("PRINT:", evaluate(node.value, frame));
       return null;

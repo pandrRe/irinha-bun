@@ -1,26 +1,28 @@
-import type { FunctionNode, Node } from "./interpreter";
+import type { FunctionNode, TupleNode } from "./interpreter";
 
-export type Value = number | boolean | FunctionNode | null;
+export type Value = number | string | boolean | FunctionNode | TupleNode | null;
 
 const globalFunctionNamespace = new Map<string, FunctionNode>();
 
-let stackCounter = 0;
 export function createFrame(initializedContext?: [string, Value][]) {
-  const frameSignature = stackCounter++;
-
   const context = initializedContext?
     new Map(initializedContext)
     : new Map<string, Value>();
 
+  function assign(key: string, value: Value) {
+    context.set(key, value);
+  }
+
+  function declareFunction(key: string, value: FunctionNode) {
+    assign(key, value);
+    globalFunctionNamespace.set(key, value);
+  }
+
+  function read(key: string) {
+    return context.get(key) ?? globalFunctionNamespace.get(key) ?? null;
+  }
+
   return {
-    assign(key: string, value: Value) {
-      context.set(key, value);
-      if (typeof value === "object" && value?.kind === "Function") {
-        globalFunctionNamespace.set(key, value);
-      }
-    },
-    read(key: string) {
-      return context.get(key) ?? globalFunctionNamespace.get(key) ?? null;
-    }
+    assign, declareFunction, read,
   };
 }
